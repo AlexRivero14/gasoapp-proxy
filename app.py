@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 import requests
 
 app = Flask(__name__)
@@ -8,22 +8,34 @@ HEADERS = {
     'Accept': 'application/json, text/plain, */*',
     'Accept-Language': 'es-ES,es;q=0.9',
     'Referer': 'https://geoportalgasolineras.es/',
-    'Origin': 'https://geoportalgasolineras.es',
 }
 
 @app.route('/api')
 def proxy():
     url = request.args.get('url')
     if not url:
-        return jsonify({'error': 'No URL'}), 400
+        resp = jsonify({'error': 'No URL'})
+        resp.headers['Access-Control-Allow-Origin'] = '*'
+        return resp, 400
     try:
         r = requests.get(url, headers=HEADERS, timeout=20)
-        data = r.json()
-        response = jsonify(data)
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        return response
+        resp = Response(r.text, status=r.status_code, mimetype='application/json')
+        resp.headers['Access-Control-Allow-Origin'] = '*'
+        resp.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+        resp.headers['Access-Control-Allow-Headers'] = '*'
+        return resp
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        resp = jsonify({'error': str(e)})
+        resp.headers['Access-Control-Allow-Origin'] = '*'
+        return resp, 500
+
+@app.route('/api', methods=['OPTIONS'])
+def proxy_options():
+    resp = Response('')
+    resp.headers['Access-Control-Allow-Origin'] = '*'
+    resp.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+    resp.headers['Access-Control-Allow-Headers'] = '*'
+    return resp
 
 if __name__ == '__main__':
     app.run()
